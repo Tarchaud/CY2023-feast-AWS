@@ -5,13 +5,17 @@ import { AttributeType, Table } from 'aws-cdk-lib/aws-dynamodb'; //table dynamod
 import * as Lambda from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'; // Créer une lambda en nodejs
 import { join } from 'path';
+import { RestApi } from 'aws-cdk-lib/aws-apigateway'; // Créer une API Gateway
 
 export class AppAwsStack extends cdk.Stack {
+  eventsTb: Table;
+  eventsAPI: RestApi;
+
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
     // The code that defines your stack goes here
-    const tb = new Table(this, 'tableEvents', {
+    this.eventsTb = new Table(this, 'tableEvents', {
         partitionKey:{
         name:'event-id',
         type:AttributeType.STRING
@@ -27,8 +31,16 @@ export class AppAwsStack extends cdk.Stack {
       description: "Appeler une liste d'événements",
       entry: join(__dirname, '../lambdas/getEventsLambda.ts'),
       environment: {
-        TABLE : tb.tableName
+        TABLE : this.eventsTb.tableName
       },
+    });
+
+    //Donner des permissions à la lambda
+    this.eventsTb.grantReadWriteData(getEventsLambda);
+
+    //Créer une API Gateway
+    this.eventsAPI = new RestApi(this, 'events-api', {
+      restApiName: 'Accéder aux événements',
     });
 
     // example resource
