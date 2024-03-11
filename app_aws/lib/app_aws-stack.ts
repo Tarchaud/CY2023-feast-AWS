@@ -67,7 +67,7 @@ export class AppAwsStack extends cdk.Stack {
       },
     });
 
-    const postEventsLambda = new NodejsFunction(this, 'postEvents', {
+    const postEventLambda = new NodejsFunction(this, 'postEvents', {
       memorySize: 128,
       description: "Ajouter un événement",
       entry: join(__dirname, '../lambdas/event/postEventLambda.ts'),
@@ -76,7 +76,7 @@ export class AppAwsStack extends cdk.Stack {
       },
     });
 
-    const putEventsLambda = new NodejsFunction(this, 'putEvents', {
+    const putEventLambda = new NodejsFunction(this, 'putEvents', {
       memorySize: 128,
       description: "Modifier un événement",
       entry: join(__dirname, '../lambdas/event/putEventLambda.ts'),
@@ -85,7 +85,7 @@ export class AppAwsStack extends cdk.Stack {
       },
     });
 
-    const deleteEventsLambda = new NodejsFunction(this, 'deleteEvents', {
+    const deleteEventLambda = new NodejsFunction(this, 'deleteEvents', {
       memorySize: 128,
       description: "Supprimer un événement",
       entry: join(__dirname, '../lambdas/event/deleteEventLambda.ts'),
@@ -105,24 +105,139 @@ export class AppAwsStack extends cdk.Stack {
 
     /* Donner des permissions à la lambda */
     this.eventsTb.grantReadWriteData(getEventsLambda);
-    this.eventsTb.grantReadWriteData(postEventsLambda);
-    this.eventsTb.grantReadWriteData(putEventsLambda);
-    this.eventsTb.grantReadWriteData(deleteEventsLambda);
+    this.eventsTb.grantReadWriteData(postEventLambda);
+    this.eventsTb.grantReadWriteData(putEventLambda);
+    this.eventsTb.grantReadWriteData(deleteEventLambda);
     this.eventsTb.grantReadWriteData(getEventLambda);
+
+
+    /**
+     * Création des lambdas pour les stocks
+     */
+    const getStocksLambda = new NodejsFunction(this, 'getStocks', {
+      memorySize: 128,
+      description: "Appeler une liste de stocks",
+      entry: join(__dirname, '../lambdas/stocks/getStocksLambda.ts'),
+      environment: {
+        TABLE : this.stocks.tableName
+      },
+    });
+
+    const postStockLambda = new NodejsFunction(this, 'postStocks', {
+      memorySize: 128,
+      description: "Ajouter un stock",
+      entry: join(__dirname, '../lambdas/stock/postStockLambda.ts'),
+      environment: {
+        TABLE : this.stocks.tableName
+      },
+    });
+
+    const putStockLambda = new NodejsFunction(this, 'putStocks', {
+      memorySize: 128,
+      description: "Modifier un stock",
+      entry: join(__dirname, '../lambdas/stock/putStockLambda.ts'),
+      environment: {
+        TABLE : this.stocks.tableName
+      },
+    });
+
+    const deleteStockLambda = new NodejsFunction(this, 'deleteStocks', {
+      memorySize: 128,
+      description: "Supprimer un stock",
+      entry: join(__dirname, '../lambdas/stock/deleteStockLambda.ts'),
+      environment: {
+        TABLE : this.stocks.tableName
+      },
+    });
+
+    const getStockLambda = new NodejsFunction(this, 'getStock', {
+      memorySize: 128,
+      description: "Appeler un stock",
+      entry: join(__dirname, '../lambdas/stock/getStockLambda.ts'),
+      environment: {
+        TABLE : this.stocks.tableName
+      },
+    });
+
+
+    /* Donner des permissions à la lambda */
+    this.stocks.grantReadWriteData(getStocksLambda);
+    this.stocks.grantReadWriteData(postStockLambda);
+    this.stocks.grantReadWriteData(putStockLambda);
+    this.stocks.grantReadWriteData(deleteStockLambda);
+    this.stocks.grantReadWriteData(getStockLambda);
+
+    /**
+     * Création des lambdas pour les utilisateurs
+     */
+
+    const getUsersLambda = new NodejsFunction(this, 'getUsers', {
+      memorySize: 128,
+      description: "Appeler une liste d'utilisateurs",
+      entry: join(__dirname, '../lambdas/users/getUsersLambda.ts'),
+      environment: {
+        TABLE : this.usersTb.tableName
+      },
+    });
+
+    const postUserLambda = new NodejsFunction(this, 'postUsers', {
+      memorySize: 128,
+      description: "Ajouter un utilisateur",
+      entry: join(__dirname, '../lambdas/user/postUserLambda.ts'),
+      environment: {
+        TABLE : this.usersTb.tableName
+      },
+    });
+
+    const putUserLambda = new NodejsFunction(this, 'putUsers', {
+      memorySize: 128,
+      description: "Modifier un utilisateur",
+      entry: join(__dirname, '../lambdas/user/putUserLambda.ts'),
+      environment: {
+        TABLE : this.usersTb.tableName
+      },
+    });
+
+    const deleteUserLambda = new NodejsFunction(this, 'deleteUsers', {
+      memorySize: 128,
+      description: "Supprimer un utilisateur",
+      entry: join(__dirname, '../lambdas/user/deleteUserLambda.ts'),
+      environment: {
+        TABLE : this.usersTb.tableName
+      },
+    });
+
+    const getUserLambda = new NodejsFunction(this, 'getUser', {
+      memorySize: 128,
+      description: "Appeler un utilisateur",
+      entry: join(__dirname, '../lambdas/user/getUserLambda.ts'),
+      environment: {
+        TABLE : this.usersTb.tableName
+      },
+    });
+
+    /* Donner des permissions à la lambda */
+    this.usersTb.grantReadWriteData(getUsersLambda);
+    this.usersTb.grantReadWriteData(postUserLambda);
+    this.usersTb.grantReadWriteData(putUserLambda);
+    this.usersTb.grantReadWriteData(deleteUserLambda);
+    this.usersTb.grantReadWriteData(getUserLambda);
+
+
 
     /**
      * Création de l'API Gateway
      */
-    this.eventsAPI = new RestApi(this, 'events-api', {
+    this.eventsAPI = new RestApi(this, 'cy-feast-api', {
       restApiName: 'Accéder aux événements',
       description: 'Gestion des événements depus le CY Feast'
     });
 
-    //Intégration de la lambda pour la connecter à une méthode de l'API
+    //Intégration des lambdas events dans l'API
     const getEventsLambdaIntegration = new LambdaIntegration(getEventsLambda);
-    const postEventsLambdaIntegration = new LambdaIntegration(postEventsLambda);
-    const putEventsLambdaIntegration = new LambdaIntegration(putEventsLambda);
-    const deleteEventsLambdaIntegration = new LambdaIntegration(deleteEventsLambda);
+    const postEventLambdaIntegration = new LambdaIntegration(postEventLambda);
+    const putEventLambdaIntegration = new LambdaIntegration(putEventLambda);
+    const deleteEventLambdaIntegration = new LambdaIntegration(deleteEventLambda);
     const getEventLambdaIntegration = new LambdaIntegration(getEventLambda);
 
     /**
@@ -130,13 +245,56 @@ export class AppAwsStack extends cdk.Stack {
      */
     const apiEvents = this.eventsAPI.root.addResource('events');
     apiEvents.addMethod('GET', getEventsLambdaIntegration);
-    apiEvents.addMethod('POST', postEventsLambdaIntegration);
+    apiEvents.addMethod('POST', postEventLambdaIntegration);
 
-    //mettre l'id de l'événement dans l'url
     const apiEvent = apiEvents.addResource('{eventId}');
     apiEvent.addMethod('GET', getEventLambdaIntegration);
-    apiEvent.addMethod('PUT', putEventsLambdaIntegration);
-    apiEvent.addMethod('DELETE', deleteEventsLambdaIntegration);
+    apiEvent.addMethod('PUT', putEventLambdaIntegration);
+    apiEvent.addMethod('DELETE', deleteEventLambdaIntegration);
+
+
+    //Intégration des lambdas stocks dans l'API
+    const getStocksLambdaIntegration = new LambdaIntegration(getStocksLambda);
+    const postStockLambdaIntegration = new LambdaIntegration(postStockLambda);
+    const putStockLambdaIntegration = new LambdaIntegration(putStockLambda);
+    const deleteStockLambdaIntegration = new LambdaIntegration(deleteStockLambda);
+    const getStockLambdaIntegration = new LambdaIntegration(getStockLambda);
+
+    /**
+     * Création des ressources de l'API pour les méthodes sur les stocks
+     */
+    const apiStocks = this.eventsAPI.root.addResource('stocks');
+    apiStocks.addMethod('GET', getStocksLambdaIntegration);
+    apiStocks.addMethod('POST', postStockLambdaIntegration);
+
+    const apiStock = apiStocks.addResource('{stockId}');
+    apiStock.addMethod('GET', getStockLambdaIntegration);
+    apiStock.addMethod('PUT', putStockLambdaIntegration);
+    apiStock.addMethod('DELETE', deleteStockLambdaIntegration);
+
+    //Intégration des lambdas users dans l'API
+    const getUsersLambdaIntegration = new LambdaIntegration(getUsersLambda);
+    const postUserLambdaIntegration = new LambdaIntegration(postUserLambda);
+    const putUserLambdaIntegration = new LambdaIntegration(putUserLambda);
+    const deleteUserLambdaIntegration = new LambdaIntegration(deleteUserLambda);
+    const getUserLambdaIntegration = new LambdaIntegration(getUserLambda);
+
+    /**
+     * Création des ressources de l'API pour les méthodes sur les users
+     */
+    const apiUsers = this.eventsAPI.root.addResource('users');
+    apiUsers.addMethod('GET', getUsersLambdaIntegration);
+    apiUsers.addMethod('POST', postUserLambdaIntegration);
+
+    const apiUser = apiUsers.addResource('{userId}');
+    apiUser.addMethod('GET', getUserLambdaIntegration);
+    apiUser.addMethod('PUT', putUserLambdaIntegration);
+    apiUser.addMethod('DELETE', deleteUserLambdaIntegration);
+
+
+    
+
+    
 
   }
 }
