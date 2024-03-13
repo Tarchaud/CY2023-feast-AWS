@@ -6,16 +6,25 @@ import * as Lambda from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'; // Créer une lambda en nodejs
 import { join } from 'path';
 import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway'; // Créer une API Gateway
+import * as s3 from 'aws-cdk-lib/aws-s3';
 
 export class AppAwsStack extends cdk.Stack {
   stocks : Table;
   eventsTb: Table;
   usersTb : Table;
 
+  bucket  : s3.Bucket;
+
   eventsAPI: RestApi;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
+
+    // Création du bucket pour les imgs
+    this.bucket = new s3.Bucket(this, 'co_bucket', {
+      versioned: true, 
+      removalPolicy: cdk.RemovalPolicy.DESTROY // Détruire le bucket lors de la suppression de la stack
+    });
 
     /**
      * Création des tables
@@ -26,6 +35,7 @@ export class AppAwsStack extends cdk.Stack {
         name:'event-id',
         type:AttributeType.STRING
       },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
       tableName:'co_tableEvents',
       readCapacity:1,
       writeCapacity:1
@@ -37,6 +47,7 @@ export class AppAwsStack extends cdk.Stack {
         name:'stock-id',
         type:AttributeType.STRING
       },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
       tableName:'co_tableStocks',
       readCapacity:1,
       writeCapacity:1
@@ -48,6 +59,7 @@ export class AppAwsStack extends cdk.Stack {
         name:'user-id',
         type:AttributeType.STRING
       },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
       tableName:'co_tableUsers',
       readCapacity:1,
       writeCapacity:1
@@ -72,6 +84,7 @@ export class AppAwsStack extends cdk.Stack {
       description: "Ajouter un événement",
       entry: join(__dirname, '../lambdas/event/postEventLambda.ts'),
       environment: {
+        BUCKET_NAME: this.bucket.bucketName,
         TABLE : this.eventsTb.tableName
       },
     });
@@ -109,6 +122,8 @@ export class AppAwsStack extends cdk.Stack {
     this.eventsTb.grantReadWriteData(putEventLambda);
     this.eventsTb.grantReadWriteData(deleteEventLambda);
     this.eventsTb.grantReadWriteData(getEventLambda);
+
+    this.bucket.grantReadWrite(postEventLambda);
 
 
     /**
