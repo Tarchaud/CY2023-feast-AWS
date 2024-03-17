@@ -39,6 +39,7 @@ export class AppAwsStack extends cdk.Stack {
       signInAliases: {
         email: true,
       },
+      removalPolicy: cdk.RemovalPolicy.DESTROY
     });
 
     this.orgaPool = new UserPool(this, 'orgaPool', {
@@ -52,6 +53,7 @@ export class AppAwsStack extends cdk.Stack {
       signInAliases: {
         email: true,
       },
+      removalPolicy: cdk.RemovalPolicy.DESTROY
     });
     
     this.adminPool = new UserPool(this, 'adminPool', {
@@ -65,12 +67,19 @@ export class AppAwsStack extends cdk.Stack {
       signInAliases: {
         email: true,
       },
+      removalPolicy: cdk.RemovalPolicy.DESTROY
     });
 
     // Extrait l'ID du pool d'utilisateurs Cognito
     const userPoolId = this.userPool.userPoolId;
     const orgaPoolId = this.orgaPool.userPoolId;
     const adminPoolId = this.adminPool.userPoolId;
+
+    // const cognitoAuthorizer = new CognitoUserPoolsAuthorizer(this, 'CognitoAuthorizer', {
+    //   cognitoUserPools: [this.userPool, this.orgaPool, this.adminPool],
+    //   identitySource: 'method.request.header.Authorization',
+    // });
+
     // Création du bucket pour les imgs
     this.bucket = new s3.Bucket(this, 'co_bucket', {
       versioned: true, 
@@ -334,6 +343,34 @@ export class AppAwsStack extends cdk.Stack {
     }));
 
     /**
+     * Partie pour les inscriptions aux événements
+     */
+
+    const postRegistrationLambda = new NodejsFunction(this, 'postRegistration', {
+      memorySize: 128,
+      description: "Inscription à un événement",
+      entry: join(__dirname, '../lambdas/registration/postRegistrationLambda.ts'),
+      environment: {
+        TABLE : this.eventsTb.tableName
+      },
+      runtime: Lambda.Runtime.NODEJS_18_X,
+    });
+
+    const deleteRegistrationLambda = new NodejsFunction(this, 'deleteRegistration', {
+      memorySize: 128,
+      description: "Désinscription à un événement",
+      entry: join(__dirname, '../lambdas/registration/deleteRegistrationLambda.ts'),
+      environment: {
+        TABLE : this.eventsTb.tableName
+      },
+      runtime: Lambda.Runtime.NODEJS_18_X,
+    });
+
+    this.eventsTb.grantReadWriteData(postRegistrationLambda);
+    this.eventsTb.grantReadWriteData(deleteRegistrationLambda);
+
+
+    /**
      * Création de l'API Gateway
      */
     this.eventsAPI = new RestApi(this, 'cy-feast-api', {
@@ -361,6 +398,19 @@ export class AppAwsStack extends cdk.Stack {
     apiEvent.addMethod('DELETE', deleteEventLambdaIntegration);
 
 
+    //Intégration des lambdas registrations dans l'API
+    const postRegistrationLambdaIntegration = new LambdaIntegration(postRegistrationLambda);
+    const deleteRegistrationLambdaIntegration = new LambdaIntegration(deleteRegistrationLambda);
+    
+    /**
+     * Création des ressources pour les inscriptions aux événements
+     */
+    const apiRegistration = apiEvents.addResource('registrations');
+    const apiRegistrationEvent = apiRegistration.addResource('{eventId}');
+    apiRegistrationEvent.addMethod('POST', postRegistrationLambdaIntegration);
+    apiRegistrationEvent.addMethod('DELETE', deleteRegistrationLambdaIntegration);    
+
+
     //Intégration des lambdas stocks dans l'API
     const getStocksLambdaIntegration = new LambdaIntegration(getStocksLambda);
     const postStockLambdaIntegration = new LambdaIntegration(postStockLambda);
@@ -379,6 +429,7 @@ export class AppAwsStack extends cdk.Stack {
     apiStock.addMethod('GET', getStockLambdaIntegration);
     apiStock.addMethod('PUT', putStockLambdaIntegration);
     apiStock.addMethod('DELETE', deleteStockLambdaIntegration);
+
 
     //Intégration des lambdas users dans l'API
     const getUsersLambdaIntegration = new LambdaIntegration(getUsersLambda);
@@ -399,10 +450,6 @@ export class AppAwsStack extends cdk.Stack {
     apiUser.addMethod('PUT', putUserLambdaIntegration);
     apiUser.addMethod('DELETE', deleteUserLambdaIntegration);
 
-
-    
-
-    
 
   }
 }
