@@ -307,14 +307,14 @@ export class AppAwsStack extends cdk.Stack {
       runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
-    /* Donner des permissions à la lambda */
+    /** Donner des permissions à la lambda */
     this.usersTb.grantReadWriteData(getUsersLambda);
     this.usersTb.grantReadWriteData(postUserLambda);
     this.usersTb.grantReadWriteData(putUserLambda);
     this.usersTb.grantReadWriteData(deleteUserLambda);
     this.usersTb.grantReadWriteData(getUserLambda);
 
-    // Autoriser la fonction Lambda à appeler l'API d'administration Cognito
+    /** Donner les permissions pour cognito */
     postUserLambda.addToRolePolicy(new PolicyStatement({
       effect: Effect.ALLOW,
       actions: ['cognito-idp:AdminCreateUser'],
