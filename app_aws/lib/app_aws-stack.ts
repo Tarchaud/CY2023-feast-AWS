@@ -5,13 +5,21 @@ import { AttributeType, Table } from 'aws-cdk-lib/aws-dynamodb'; //table dynamod
 import * as Lambda from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'; // Créer une lambda en nodejs
 import { join } from 'path';
-import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway'; // Créer une API Gateway
+import { CognitoUserPoolsAuthorizer, LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway'; // Créer une API Gateway
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import { UserPool, VerificationEmailStyle } from 'aws-cdk-lib/aws-cognito';
+import { PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
+
 
 export class AppAwsStack extends cdk.Stack {
   stocks : Table;
   eventsTb: Table;
   usersTb : Table;
+
+  poolIdEnv : any;
+  userPool: UserPool;
+  orgaPool: UserPool;
+  adminPool: UserPool;
 
   bucket  : s3.Bucket;
 
@@ -20,6 +28,49 @@ export class AppAwsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    this.userPool = new UserPool(this, 'userPool', {
+      selfSignUpEnabled: true,
+      userVerification: {
+        emailSubject: 'Verify your email for our awesome app!',
+        emailBody: 'Hello {username}, Thanks for signing up to our awesome app! Your verification code is {####}',
+        emailStyle: VerificationEmailStyle.CODE,
+        smsMessage: 'Hello {username}, Thanks for signing up to our awesome app! Your verification code is {####}',
+      },
+      signInAliases: {
+        email: true,
+      },
+    });
+
+    this.orgaPool = new UserPool(this, 'orgaPool', {
+      selfSignUpEnabled: true,
+      userVerification: {
+        emailSubject: 'Verify your email for our awesome app!',
+        emailBody: 'Hello {username}, Thanks for signing up to our awesome app! Your verification code is {####}',
+        emailStyle: VerificationEmailStyle.CODE,
+        smsMessage: 'Hello {username}, Thanks for signing up to our awesome app! Your verification code is {####}',
+      },
+      signInAliases: {
+        email: true,
+      },
+    });
+    
+    this.adminPool = new UserPool(this, 'adminPool', {
+      selfSignUpEnabled: true,
+      userVerification: {
+        emailSubject: 'Verify your email for our awesome app!',
+        emailBody: 'Hello {username}, Thanks for signing up to our awesome app! Your verification code is {####}',
+        emailStyle: VerificationEmailStyle.CODE,
+        smsMessage: 'Hello {username}, Thanks for signing up to our awesome app! Your verification code is {####}',
+      },
+      signInAliases: {
+        email: true,
+      },
+    });
+
+    // Extrait l'ID du pool d'utilisateurs Cognito
+    const userPoolId = this.userPool.userPoolId;
+    const orgaPoolId = this.orgaPool.userPoolId;
+    const adminPoolId = this.adminPool.userPoolId;
     // Création du bucket pour les imgs
     this.bucket = new s3.Bucket(this, 'co_bucket', {
       versioned: true, 
@@ -77,6 +128,7 @@ export class AppAwsStack extends cdk.Stack {
       environment: {
         TABLE : this.eventsTb.tableName
       },
+      runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
     const postEventLambda = new NodejsFunction(this, 'postEvents', {
@@ -87,6 +139,7 @@ export class AppAwsStack extends cdk.Stack {
         BUCKET_NAME: this.bucket.bucketName,
         TABLE : this.eventsTb.tableName
       },
+      runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
     const putEventLambda = new NodejsFunction(this, 'putEvents', {
@@ -96,6 +149,7 @@ export class AppAwsStack extends cdk.Stack {
       environment: {
         TABLE : this.eventsTb.tableName
       },
+      runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
     const deleteEventLambda = new NodejsFunction(this, 'deleteEvents', {
@@ -105,6 +159,7 @@ export class AppAwsStack extends cdk.Stack {
       environment: {
         TABLE : this.eventsTb.tableName
       },
+      runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
     const getEventLambda = new NodejsFunction(this, 'getEvent', {
@@ -114,6 +169,7 @@ export class AppAwsStack extends cdk.Stack {
       environment: {
         TABLE : this.eventsTb.tableName
       },
+      runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
     /* Donner des permissions à la lambda */
@@ -123,6 +179,7 @@ export class AppAwsStack extends cdk.Stack {
     this.eventsTb.grantReadWriteData(deleteEventLambda);
     this.eventsTb.grantReadWriteData(getEventLambda);
 
+    /* Donner des permissions à la lambda sur le bucket */
     this.bucket.grantReadWrite(postEventLambda);
 
 
@@ -136,6 +193,7 @@ export class AppAwsStack extends cdk.Stack {
       environment: {
         TABLE : this.stocks.tableName
       },
+      runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
     const postStockLambda = new NodejsFunction(this, 'postStocks', {
@@ -145,6 +203,7 @@ export class AppAwsStack extends cdk.Stack {
       environment: {
         TABLE : this.stocks.tableName
       },
+      runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
     const putStockLambda = new NodejsFunction(this, 'putStocks', {
@@ -154,6 +213,7 @@ export class AppAwsStack extends cdk.Stack {
       environment: {
         TABLE : this.stocks.tableName
       },
+      runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
     const deleteStockLambda = new NodejsFunction(this, 'deleteStocks', {
@@ -163,6 +223,7 @@ export class AppAwsStack extends cdk.Stack {
       environment: {
         TABLE : this.stocks.tableName
       },
+      runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
     const getStockLambda = new NodejsFunction(this, 'getStock', {
@@ -172,6 +233,7 @@ export class AppAwsStack extends cdk.Stack {
       environment: {
         TABLE : this.stocks.tableName
       },
+      runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
 
@@ -193,6 +255,7 @@ export class AppAwsStack extends cdk.Stack {
       environment: {
         TABLE : this.usersTb.tableName
       },
+      runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
     const postUserLambda = new NodejsFunction(this, 'postUsers', {
@@ -200,8 +263,12 @@ export class AppAwsStack extends cdk.Stack {
       description: "Ajouter un utilisateur",
       entry: join(__dirname, '../lambdas/user/postUserLambda.ts'),
       environment: {
-        TABLE : this.usersTb.tableName
+        TABLE : this.usersTb.tableName,
+        USER_POOL_ID: userPoolId,
+        ORGA_POOL_ID: orgaPoolId,
+        ADMIN_POOL_ID: adminPoolId
       },
+      runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
     const putUserLambda = new NodejsFunction(this, 'putUsers', {
@@ -209,8 +276,12 @@ export class AppAwsStack extends cdk.Stack {
       description: "Modifier un utilisateur",
       entry: join(__dirname, '../lambdas/user/putUserLambda.ts'),
       environment: {
-        TABLE : this.usersTb.tableName
+        TABLE : this.usersTb.tableName,
+        USER_POOL_ID: userPoolId,
+        ORGA_POOL_ID: orgaPoolId,
+        ADMIN_POOL_ID: adminPoolId
       },
+      runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
     const deleteUserLambda = new NodejsFunction(this, 'deleteUsers', {
@@ -218,8 +289,12 @@ export class AppAwsStack extends cdk.Stack {
       description: "Supprimer un utilisateur",
       entry: join(__dirname, '../lambdas/user/deleteUserLambda.ts'),
       environment: {
-        TABLE : this.usersTb.tableName
+        TABLE : this.usersTb.tableName,
+        USER_POOL_ID: userPoolId,
+        ORGA_POOL_ID: orgaPoolId,
+        ADMIN_POOL_ID: adminPoolId
       },
+      runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
     const getUserLambda = new NodejsFunction(this, 'getUser', {
@@ -229,6 +304,7 @@ export class AppAwsStack extends cdk.Stack {
       environment: {
         TABLE : this.usersTb.tableName
       },
+      runtime: Lambda.Runtime.NODEJS_18_X,
     });
 
     /* Donner des permissions à la lambda */
@@ -238,7 +314,24 @@ export class AppAwsStack extends cdk.Stack {
     this.usersTb.grantReadWriteData(deleteUserLambda);
     this.usersTb.grantReadWriteData(getUserLambda);
 
+    // Autoriser la fonction Lambda à appeler l'API d'administration Cognito
+    postUserLambda.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ['cognito-idp:AdminCreateUser'],
+      resources: [this.userPool.userPoolArn, this.orgaPool.userPoolArn, this.adminPool.userPoolArn]
+    }));
 
+    putUserLambda.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ['cognito-idp:AdminCreateUser','cognito-idp:AdminUpdateUserAttributes', 'cognito-idp:AdminDeleteUser'],
+      resources: [this.userPool.userPoolArn, this.orgaPool.userPoolArn, this.adminPool.userPoolArn]
+    }));
+
+    deleteUserLambda.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ['cognito-idp:AdminDeleteUser'],
+      resources: [this.userPool.userPoolArn, this.orgaPool.userPoolArn, this.adminPool.userPoolArn]
+    }));
 
     /**
      * Création de l'API Gateway

@@ -17,7 +17,7 @@ exports.handler = async(event : any) => {
         switch (event.requestContext.httpMethod) {
             case 'GET':
                 body = await db.scan({ TableName, Key: { "user-id": userId } });
-                body = body.Item;
+                body = body.Items[0];
                 break;
             default:
                 throw new Error(`Unsupported method "${event.requestContext.httpMethod}"`);
