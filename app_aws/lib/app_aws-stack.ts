@@ -443,13 +443,16 @@ export class AppAwsStack extends cdk.Stack {
      */
     const apiUsers = this.eventsAPI.root.addResource('users');
     apiUsers.addMethod('GET', getUsersLambdaIntegration);
-    apiUsers.addMethod('POST', postUserLambdaIntegration);
 
     const apiUser = apiUsers.addResource('{userId}');
     apiUser.addMethod('GET', getUserLambdaIntegration);
     apiUser.addMethod('PUT', putUserLambdaIntegration);
     apiUser.addMethod('DELETE', deleteUserLambdaIntegration);
 
+    const apiSignUp = apiUsers.addResource('signup');
+    apiSignUp.addMethod('POST', postUserLambdaIntegration);
+
+    // const apiSignIn = apiUsers.addResource('signin');
 
   }
 }
