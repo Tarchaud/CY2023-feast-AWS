@@ -1,10 +1,7 @@
-import { CognitoIdentityProviderClient, SignUpCommand, AdminInitiateAuthCommand,InitiateAuthCommand } from '@aws-sdk/client-cognito-identity-provider'; 
+import { CognitoIdentityProviderClient, InitiateAuthCommand } from '@aws-sdk/client-cognito-identity-provider'; 
 import CognitoIdentityServiceProvider = require('aws-sdk/clients/cognitoidentityserviceprovider');
 
-const TableName = process.env.TABLE;
 const USER_POOL_ID = process.env.USER_POOL_ID;
-const ORGA_POOL_ID = process.env.ORGA_POOL_ID;
-const ADMIN_POOL_ID = process.env.ADMIN_POOL_ID;
 const USER_CLIENT_ID = process.env.USER_CLIENT_ID;
 
 export const handler = async (event : any) => {
@@ -14,7 +11,6 @@ export const handler = async (event : any) => {
         'Content-Type': 'application/json',
     };
 
-    const cognito = new CognitoIdentityServiceProvider();
     const client = new CognitoIdentityProviderClient({});
 
     let data;
