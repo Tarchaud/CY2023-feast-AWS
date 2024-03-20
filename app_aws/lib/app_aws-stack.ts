@@ -1,13 +1,13 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
-import { AttributeType, Table } from 'aws-cdk-lib/aws-dynamodb'; //table dynamodb et les attributs de sa clé de partition
+import { AttributeType, Table } from 'aws-cdk-lib/aws-dynamodb'; 
 import * as Lambda from 'aws-cdk-lib/aws-lambda';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'; // Créer une lambda en nodejs
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'; 
 import { join } from 'path';
-import { CognitoUserPoolsAuthorizer, LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway'; // Créer une API Gateway
-import { UserPool, VerificationEmailStyle } from 'aws-cdk-lib/aws-cognito';
-import { PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
+import { AuthorizationType, CognitoUserPoolsAuthorizer, IdentitySource, LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway'; 
+import { UserPool, UserPoolClient, UserPoolDomain, CfnUserPoolGroup, VerificationEmailStyle } from 'aws-cdk-lib/aws-cognito';
+import { Role, PolicyStatement, Effect, ServicePrincipal, FederatedPrincipal } from "aws-cdk-lib/aws-iam";
+import * as cognito from "aws-cdk-lib/aws-cognito";
 
 
 export class AppAwsStack extends cdk.Stack {
@@ -15,11 +15,9 @@ export class AppAwsStack extends cdk.Stack {
   eventsTb: Table;
   usersTb : Table;
 
-  poolIdEnv : any;
-  userPool: UserPool;
-  orgaPool: UserPool;
-  adminPool: UserPool;
 
+  userPool: UserPool;
+  userPoolClient: UserPoolClient;
 
   eventsAPI: RestApi;
 
@@ -27,57 +25,96 @@ export class AppAwsStack extends cdk.Stack {
     super(scope, id, props);
 
     this.userPool = new UserPool(this, 'userPool', {
-      selfSignUpEnabled: true,
-      userVerification: {
-        emailSubject: 'Verify your email for our awesome app!',
-        emailBody: 'Hello {username}, Thanks for signing up to our awesome app! Your verification code is {####}',
-        emailStyle: VerificationEmailStyle.CODE,
-        smsMessage: 'Hello {username}, Thanks for signing up to our awesome app! Your verification code is {####}',
+      selfSignUpEnabled: true, 
+      signInAliases: { email: true }, 
+      autoVerify: { email: true }, 
+      standardAttributes: {
+        email: {
+          required: true,
+          mutable: false,
+        },
       },
-      signInAliases: {
-        email: true,
+      userVerification: {
+        emailSubject: 'You need to verify your email',
+        emailBody: 'Thanks for signing up Your verification code is {####}',
+        emailStyle: cognito.VerificationEmailStyle.CODE,
+      },
+      passwordPolicy: {
+        minLength: 8,
+        requireLowercase: true,
+        requireDigits: true,
+        requireSymbols: false,
+        requireUppercase: true,
       },
       removalPolicy: cdk.RemovalPolicy.DESTROY
     });
 
-    this.orgaPool = new UserPool(this, 'orgaPool', {
-      selfSignUpEnabled: true,
-      userVerification: {
-        emailSubject: 'Verify your email for our awesome app!',
-        emailBody: 'Hello {username}, Thanks for signing up to our awesome app! Your verification code is {####}',
-        emailStyle: VerificationEmailStyle.CODE,
-        smsMessage: 'Hello {username}, Thanks for signing up to our awesome app! Your verification code is {####}',
-      },
-      signInAliases: {
-        email: true,
-      },
-      removalPolicy: cdk.RemovalPolicy.DESTROY
+    const usersGroup =  new cognito.CfnUserPoolGroup(this, 'UserGroup', {
+      userPoolId: this.userPool.userPoolId,
+
+      description: 'role des user',
+      groupName: 'UserGroup',
     });
     
-    this.adminPool = new UserPool(this, 'adminPool', {
-      selfSignUpEnabled: true,
-      userVerification: {
-        emailSubject: 'Verify your email for our awesome app!',
-        emailBody: 'Hello {username}, Thanks for signing up to our awesome app! Your verification code is {####}',
-        emailStyle: VerificationEmailStyle.CODE,
-        smsMessage: 'Hello {username}, Thanks for signing up to our awesome app! Your verification code is {####}',
-      },
-      signInAliases: {
-        email: true,
-      },
-      removalPolicy: cdk.RemovalPolicy.DESTROY
+    const orgsGroup = new cognito.CfnUserPoolGroup(this, 'OrgsGroup', {
+      userPoolId: this.userPool.userPoolId,
+
+      description: 'role des orga',
+      groupName: 'OrgsGroup',
     });
+    
+    const adminsGroup = new cognito.CfnUserPoolGroup(this, 'AdminsGroup', {
+      userPoolId: this.userPool.userPoolId,
+
+      description: 'role des admin',
+      groupName: 'AdminsGroup',
+    });
+    
+
+
+    this.userPoolClient = this.userPool.addClient("MyAppWebClient", {
+      userPoolClientName: "MyAppWebClient",
+      idTokenValidity: cdk.Duration.days(1),
+      accessTokenValidity: cdk.Duration.days(1),
+      authFlows: {
+        userPassword: true,
+        adminUserPassword: true,
+      },
+      oAuth: {
+        flows: {authorizationCodeGrant: true},
+        scopes: [cognito.OAuthScope.OPENID]
+      },
+      supportedIdentityProviders: [cognito.UserPoolClientIdentityProvider.COGNITO]
+    });
+
+    this.userPoolClient.applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
+
+    // Sortie des identifiants du pool d'utilisateurs et du client
+    new cdk.CfnOutput(this, 'UserPoolId', {
+      value: this.userPool.userPoolId,
+    });
+
+    new cdk.CfnOutput(this, 'UserPoolClientId', {
+      value: this.userPoolClient.userPoolClientId,
+    });
+
+    const userDomain = new UserPoolDomain(this, 'userPoolDomain',{
+      userPool : this.userPool,
+      cognitoDomain: {
+        domainPrefix: 'cyfeast'
+      }
+    });
+
+    userDomain.applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
 
     // Extrait l'ID du pool d'utilisateurs Cognito
     const userPoolId = this.userPool.userPoolId;
-    const orgaPoolId = this.orgaPool.userPoolId;
-    const adminPoolId = this.adminPool.userPoolId;
 
-    // const cognitoAuthorizer = new CognitoUserPoolsAuthorizer(this, 'CognitoAuthorizer', {
-    //   cognitoUserPools: [this.userPool, this.orgaPool, this.adminPool],
-    //   identitySource: 'method.request.header.Authorization',
-    // });
+    const userPoolClientID = this.userPoolClient.userPoolClientId;
 
+    const cognitoAuthorizer = new CognitoUserPoolsAuthorizer(this, 'CognitoAuthorizer', {
+      cognitoUserPools: [this.userPool],
+      identitySource: 'method.request.header.Authorization',
     });
 
     /**
@@ -181,8 +218,6 @@ export class AppAwsStack extends cdk.Stack {
     this.eventsTb.grantReadWriteData(deleteEventLambda);
     this.eventsTb.grantReadWriteData(getEventLambda);
 
-
-
     /**
      * Création des lambdas pour les stocks
      */
@@ -247,7 +282,6 @@ export class AppAwsStack extends cdk.Stack {
     /**
      * Création des lambdas pour les utilisateurs
      */
-
     const getUsersLambda = new NodejsFunction(this, 'getUsers', {
       memorySize: 128,
       description: "Appeler une liste d'utilisateurs",
@@ -265,8 +299,19 @@ export class AppAwsStack extends cdk.Stack {
       environment: {
         TABLE : this.usersTb.tableName,
         USER_POOL_ID: userPoolId,
-        ORGA_POOL_ID: orgaPoolId,
-        ADMIN_POOL_ID: adminPoolId
+        USER_CLIENT_ID: userPoolClientID
+      },
+      runtime: Lambda.Runtime.NODEJS_18_X,
+    });
+
+    const loginUserLambda = new NodejsFunction(this, 'loginUser', {
+      memorySize: 128,
+      description: "Connexion d'un utilisateur",
+      entry: join(__dirname, '../lambdas/user/loginUserLambda.ts'),
+      environment: {
+        TABLE : this.usersTb.tableName,
+        USER_POOL_ID: userPoolId,
+        USER_CLIENT_ID: userPoolClientID,        
       },
       runtime: Lambda.Runtime.NODEJS_18_X,
     });
@@ -277,9 +322,7 @@ export class AppAwsStack extends cdk.Stack {
       entry: join(__dirname, '../lambdas/user/putUserLambda.ts'),
       environment: {
         TABLE : this.usersTb.tableName,
-        USER_POOL_ID: userPoolId,
-        ORGA_POOL_ID: orgaPoolId,
-        ADMIN_POOL_ID: adminPoolId
+        USER_POOL_ID: userPoolId
       },
       runtime: Lambda.Runtime.NODEJS_18_X,
     });
@@ -290,9 +333,7 @@ export class AppAwsStack extends cdk.Stack {
       entry: join(__dirname, '../lambdas/user/deleteUserLambda.ts'),
       environment: {
         TABLE : this.usersTb.tableName,
-        USER_POOL_ID: userPoolId,
-        ORGA_POOL_ID: orgaPoolId,
-        ADMIN_POOL_ID: adminPoolId
+        USER_POOL_ID: userPoolId
       },
       runtime: Lambda.Runtime.NODEJS_18_X,
     });
@@ -313,24 +354,25 @@ export class AppAwsStack extends cdk.Stack {
     this.usersTb.grantReadWriteData(putUserLambda);
     this.usersTb.grantReadWriteData(deleteUserLambda);
     this.usersTb.grantReadWriteData(getUserLambda);
+    this.usersTb.grantReadWriteData(loginUserLambda);
 
     /** Donner les permissions pour cognito */
     postUserLambda.addToRolePolicy(new PolicyStatement({
       effect: Effect.ALLOW,
-      actions: ['cognito-idp:AdminCreateUser'],
-      resources: [this.userPool.userPoolArn, this.orgaPool.userPoolArn, this.adminPool.userPoolArn]
+      actions: ['cognito-idp:AdminCreateUser', 'cognito-idp:AdminAddUserToGroup'],
+      resources: [this.userPool.userPoolArn]
     }));
 
-    putUserLambda.addToRolePolicy(new PolicyStatement({
+    loginUserLambda.addToRolePolicy(new PolicyStatement({
       effect: Effect.ALLOW,
-      actions: ['cognito-idp:AdminCreateUser','cognito-idp:AdminUpdateUserAttributes', 'cognito-idp:AdminDeleteUser'],
-      resources: [this.userPool.userPoolArn, this.orgaPool.userPoolArn, this.adminPool.userPoolArn]
+      actions: ['cognito-idp:InitiateAuth'],
+      resources: [this.userPool.userPoolArn]
     }));
 
     deleteUserLambda.addToRolePolicy(new PolicyStatement({
       effect: Effect.ALLOW,
       actions: ['cognito-idp:AdminDeleteUser'],
-      resources: [this.userPool.userPoolArn, this.orgaPool.userPoolArn, this.adminPool.userPoolArn]
+      resources: [this.userPool.userPoolArn]
     }));
 
     /**
@@ -381,12 +423,12 @@ export class AppAwsStack extends cdk.Stack {
      */
     const apiEvents = this.eventsAPI.root.addResource('events');
     apiEvents.addMethod('GET', getEventsLambdaIntegration);
-    apiEvents.addMethod('POST', postEventLambdaIntegration);
+    apiEvents.addMethod('POST', postEventLambdaIntegration, {authorizer: cognitoAuthorizer});
 
     const apiEvent = apiEvents.addResource('{eventId}');
     apiEvent.addMethod('GET', getEventLambdaIntegration);
-    apiEvent.addMethod('PUT', putEventLambdaIntegration);
-    apiEvent.addMethod('DELETE', deleteEventLambdaIntegration);
+    apiEvent.addMethod('PUT', putEventLambdaIntegration, {authorizer : cognitoAuthorizer});
+    apiEvent.addMethod('DELETE', deleteEventLambdaIntegration, {authorizer : cognitoAuthorizer});
 
 
     //Intégration des lambdas registrations dans l'API
@@ -398,8 +440,8 @@ export class AppAwsStack extends cdk.Stack {
      */
     const apiRegistration = apiEvents.addResource('registrations');
     const apiRegistrationEvent = apiRegistration.addResource('{eventId}');
-    apiRegistrationEvent.addMethod('POST', postRegistrationLambdaIntegration);
-    apiRegistrationEvent.addMethod('DELETE', deleteRegistrationLambdaIntegration);    
+    apiRegistrationEvent.addMethod('POST', postRegistrationLambdaIntegration), {authorizer : cognitoAuthorizer};
+    apiRegistrationEvent.addMethod('DELETE', deleteRegistrationLambdaIntegration, {authorizer : cognitoAuthorizer});    
 
 
     //Intégration des lambdas stocks dans l'API
@@ -413,13 +455,13 @@ export class AppAwsStack extends cdk.Stack {
      * Création des ressources de l'API pour les méthodes sur les stocks
      */
     const apiStocks = this.eventsAPI.root.addResource('stocks');
-    apiStocks.addMethod('GET', getStocksLambdaIntegration);
-    apiStocks.addMethod('POST', postStockLambdaIntegration);
+    apiStocks.addMethod('GET', getStocksLambdaIntegration, {authorizer : cognitoAuthorizer});
+    apiStocks.addMethod('POST', postStockLambdaIntegration, {authorizer : cognitoAuthorizer});
 
     const apiStock = apiStocks.addResource('{stockId}');
-    apiStock.addMethod('GET', getStockLambdaIntegration);
-    apiStock.addMethod('PUT', putStockLambdaIntegration);
-    apiStock.addMethod('DELETE', deleteStockLambdaIntegration);
+    apiStock.addMethod('GET', getStockLambdaIntegration, {authorizer : cognitoAuthorizer});
+    apiStock.addMethod('PUT', putStockLambdaIntegration, {authorizer : cognitoAuthorizer});
+    apiStock.addMethod('DELETE', deleteStockLambdaIntegration, {authorizer : cognitoAuthorizer});
 
 
     //Intégration des lambdas users dans l'API
@@ -428,22 +470,24 @@ export class AppAwsStack extends cdk.Stack {
     const putUserLambdaIntegration = new LambdaIntegration(putUserLambda);
     const deleteUserLambdaIntegration = new LambdaIntegration(deleteUserLambda);
     const getUserLambdaIntegration = new LambdaIntegration(getUserLambda);
+    const loginUserLambdaIntegration = new LambdaIntegration(loginUserLambda);
 
     /**
      * Création des ressources de l'API pour les méthodes sur les users
      */
     const apiUsers = this.eventsAPI.root.addResource('users');
-    apiUsers.addMethod('GET', getUsersLambdaIntegration);
+    apiUsers.addMethod('GET', getUsersLambdaIntegration, {authorizer : cognitoAuthorizer});
 
     const apiUser = apiUsers.addResource('{userId}');
-    apiUser.addMethod('GET', getUserLambdaIntegration);
-    apiUser.addMethod('PUT', putUserLambdaIntegration);
-    apiUser.addMethod('DELETE', deleteUserLambdaIntegration);
+    apiUser.addMethod('GET', getUserLambdaIntegration, {authorizer : cognitoAuthorizer});
+    apiUser.addMethod('PUT', putUserLambdaIntegration, {authorizer : cognitoAuthorizer});
+    apiUser.addMethod('DELETE', deleteUserLambdaIntegration, {authorizer : cognitoAuthorizer});
 
     const apiSignUp = apiUsers.addResource('signup');
     apiSignUp.addMethod('POST', postUserLambdaIntegration);
 
-    // const apiSignIn = apiUsers.addResource('signin');
+    const apiSignIn = apiUsers.addResource('login');
+    apiSignIn.addMethod('POST', loginUserLambdaIntegration);
 
   }
 }
