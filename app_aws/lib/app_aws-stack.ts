@@ -5,8 +5,8 @@ import * as Lambda from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'; 
 import { join } from 'path';
 import { AuthorizationType, CognitoUserPoolsAuthorizer, IdentitySource, LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway'; 
-import { UserPool, UserPoolClient, UserPoolDomain, CfnUserPoolGroup, VerificationEmailStyle } from 'aws-cdk-lib/aws-cognito';
-import { Role, PolicyStatement, Effect, ServicePrincipal, FederatedPrincipal } from "aws-cdk-lib/aws-iam";
+import { UserPool, UserPoolClient, UserPoolDomain } from 'aws-cdk-lib/aws-cognito';
+import { Role, PolicyStatement, Effect} from "aws-cdk-lib/aws-iam";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 
 
@@ -33,6 +33,11 @@ export class AppAwsStack extends cdk.Stack {
           required: true,
           mutable: false,
         },
+      },
+      customAttributes: {
+        role: new cognito.StringAttribute({
+          mutable: true,
+        }),
       },
       userVerification: {
         emailSubject: 'You need to verify your email',

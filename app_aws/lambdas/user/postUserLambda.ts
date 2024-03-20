@@ -34,6 +34,13 @@ export const handler = async (event : any) => {
                         UserGroup = "UserGroup";
                 }
 
+                let role 
+                if(tmpBody.role && ["admin", "orga", "user"].includes(tmpBody.role)){
+                    role = tmpBody.role;
+                }else{
+                    role = "user";
+                }
+
                 const result = await cognitoIdentityServiceProvider.send(
                     new SignUpCommand({
                         ClientId: USER_CLIENT_ID!,
@@ -44,6 +51,10 @@ export const handler = async (event : any) => {
                                 Name: 'email',
                                 Value: tmpBody.email,
                             },
+                            {
+                                Name: 'custom:role',
+                                Value: tmpBody.role,
+                            }
                         ],
                     }),
                 );

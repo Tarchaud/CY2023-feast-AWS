@@ -1,6 +1,35 @@
 [![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-24ddc0f5d75046c5622901739e7c5dd533143b0c8e959d652212380cedb1ea36.svg)](https://classroom.github.com/a/fi-kF-yD)
 # CY-2023_Perpective2-AWS - CHAUTARD Corentin
 
+## Création d'un user et récupérer le token
+
+### Création du user, il faut faire une requête sur la route `/users/signup` :
+
+avec les paramètres minimum
+```json
+{
+    "email" : "",
+    "password" : "",
+    "username" : ""
+}
+//les roles sont : user, admin, orga
+```
+### Puis utiliser la commande aws CLI pour confirmer le user 
+
+```bash
+aws cognito-idp admin-confirm-sign-up --user-pool-id <id-user-pool>  --username <username> --region <region_stack>
+```
+
+### Pour récupérer le token, il faut faire une requête sur la route `/users/login` : 
+
+avec les paramètres
+```json
+{
+    "username" : "",
+    "password" : ""
+}
+```
+
 ![infra_aws](assets/infra_aws.png)
 
 ## Modéliser et codage d'une une infrastructure Cloud Serverless
