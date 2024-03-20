@@ -6,7 +6,6 @@ import * as Lambda from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'; // Créer une lambda en nodejs
 import { join } from 'path';
 import { CognitoUserPoolsAuthorizer, LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway'; // Créer une API Gateway
-import * as s3 from 'aws-cdk-lib/aws-s3';
 import { UserPool, VerificationEmailStyle } from 'aws-cdk-lib/aws-cognito';
 import { PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
 
@@ -21,7 +20,6 @@ export class AppAwsStack extends cdk.Stack {
   orgaPool: UserPool;
   adminPool: UserPool;
 
-  bucket  : s3.Bucket;
 
   eventsAPI: RestApi;
 
@@ -80,10 +78,6 @@ export class AppAwsStack extends cdk.Stack {
     //   identitySource: 'method.request.header.Authorization',
     // });
 
-    // Création du bucket pour les imgs
-    this.bucket = new s3.Bucket(this, 'co_bucket', {
-      versioned: true, 
-      removalPolicy: cdk.RemovalPolicy.DESTROY // Détruire le bucket lors de la suppression de la stack
     });
 
     /**
@@ -188,8 +182,6 @@ export class AppAwsStack extends cdk.Stack {
     this.eventsTb.grantReadWriteData(deleteEventLambda);
     this.eventsTb.grantReadWriteData(getEventLambda);
 
-    /* Donner des permissions à la lambda sur le bucket */
-    this.bucket.grantReadWrite(postEventLambda);
 
 
     /**
