@@ -139,7 +139,6 @@ export class AppAwsStack extends cdk.Stack {
       description: "Ajouter un événement",
       entry: join(__dirname, '../lambdas/event/postEventLambda.ts'),
       environment: {
-        BUCKET_NAME: this.bucket.bucketName,
         TABLE : this.eventsTb.tableName
       },
       runtime: Lambda.Runtime.NODEJS_18_X,
