@@ -1,5 +1,4 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-24ddc0f5d75046c5622901739e7c5dd533143b0c8e959d652212380cedb1ea36.svg)](https://classroom.github.com/a/fi-kF-yD)
-# CY-2023_Perpective2-AWS - CHAUTARD Corentin
+# CY2024-feast-AWS 
 
 ## Création d'un user et récupérer le token
 
